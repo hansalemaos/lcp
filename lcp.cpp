@@ -200,26 +200,26 @@ typedef struct final_struct
     int64_t UnixTime;
     size_t distance_from_start;
     size_t size;
-    bool Visible;
-    bool Password;
-    bool Selected;
-    bool Scrollable;
-    bool LongClickable;
-    bool Loggable;
-    bool IsTextSelectable;
-    bool ImportantForAccessibility;
-    bool Enabled;
-    bool Empty;
-    bool ContextClickable;
-    bool ContentInvalid;
-    bool FullScreen;
-    bool Focused;
-    bool Focusable;
-    bool AccessibilityFocused;
-    bool AccessibilityDataSensitive;
-    bool Clickable;
-    bool Checked;
-    bool Checkable;
+    int Visible;
+    int Password;
+    int Selected;
+    int Scrollable;
+    int LongClickable;
+    int Loggable;
+    int IsTextSelectable;
+    int ImportantForAccessibility;
+    int Enabled;
+    int Empty;
+    int ContextClickable;
+    int ContentInvalid;
+    int FullScreen;
+    int Focused;
+    int Focusable;
+    int AccessibilityFocused;
+    int AccessibilityDataSensitive;
+    int Clickable;
+    int Checked;
+    int Checkable;
 } fstru;
 
 template <typename T> void print_structs(std::ostream &os, T &s)
@@ -903,7 +903,6 @@ static constexpr size_t find_time_stamp(const std::string_view line)
     }
     for (size_t i{}; i < line.size() - 20; i++)
     {
-        // example: 12-30 03:12:08.375
         if (is_digit(line[i]) && is_digit(line[i + 1]) && (line[i + 2] == '-') && is_digit(line[i + 3]) &&
             is_digit(line[i + 4]) && (line[i + 5] == ' ') && is_digit(line[i + 6]) && is_digit(line[i + 7]) &&
             (line[i + 8] == ':') && is_digit(line[i + 9]) && is_digit(line[i + 10]) && (line[i + 11] == ':') &&
@@ -960,6 +959,504 @@ bool static constexpr isspace_or_empty(const std::string_view &s)
     }
     return std::all_of(s.begin(), s.end(), isspace);
 }
+
+static constexpr std::string_view truesv{"true"};
+static constexpr bool istrue(const std::string_view &s)
+{
+    if (s.size() != 4)
+    {
+        return false;
+    }
+    return s == truesv;
+}
+static bool constexpr compare2strings(const std::string_view s1, const std::string_view s2)
+{
+    if (s1.size() != s2.size())
+    {
+        return false;
+    }
+    auto it1 = s1.begin();
+    auto it2 = s2.begin();
+    while (it1 != s1.end())
+    {
+        if (*it1 != *it2)
+        {
+            return false;
+        }
+        it1++;
+        it2++;
+    }
+    return true;
+}
+
+static constexpr void set_bounds_array_to_0(std::array<std::string, 4> &boundsarray)
+{
+
+    for (int i = 0; i < 4; i++)
+    {
+        boundsarray[i].clear();
+        boundsarray[i] += '0';
+    }
+}
+static constexpr std::string_view sv_rectstart{"Rect("};
+static constexpr std::array<char, 10> all_numbers_as_chars{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+static void constexpr parse_my_coords(const std::string_view s, std::array<std::string, 4> &resultstringarray)
+{
+
+    if (s.find(sv_rectstart) == std::string::npos)
+    {
+        set_bounds_array_to_0(resultstringarray);
+
+        return;
+    }
+    resultstringarray[0].clear();
+    resultstringarray[1].clear();
+    resultstringarray[2].clear();
+    resultstringarray[3].clear();
+    size_t current_idx{};
+    bool foundgood{false};
+    bool lastkeywasnumber{false};
+    bool beforelastkeywasnumber{false};
+
+    for (size_t i{5}; i < s.size(); i++)
+    {
+        lastkeywasnumber = false;
+        foundgood = false;
+        for (size_t j{0}; j < 10; j++)
+        {
+            if (s[i] == all_numbers_as_chars[j])
+            {
+                resultstringarray[current_idx] += s[i];
+                foundgood = true;
+                lastkeywasnumber = true;
+                break;
+            }
+        }
+        if (!foundgood)
+        {
+            if ((s[i] == '-') && (i + 1 < s.size()))
+            {
+                for (size_t j{0}; j < 10; j++)
+                {
+                    if (s[i + 1] == all_numbers_as_chars[j])
+                    {
+                        resultstringarray[current_idx] += s[i];
+                        foundgood = true;
+                        lastkeywasnumber = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!foundgood)
+        {
+            if ((!lastkeywasnumber) && (beforelastkeywasnumber))
+            {
+                current_idx++;
+            }
+        }
+        beforelastkeywasnumber = lastkeywasnumber;
+    }
+}
+static void constexpr calculate_bounds_parent(final_struct *mystruct, std::array<std::string, 4> &resultcoords)
+{
+    mystruct->aa_parent_start_x_real = myatoll(resultcoords[0]);
+    mystruct->aa_parent_start_y_real = myatoll(resultcoords[1]);
+    mystruct->aa_parent_end_x_real = myatoll(resultcoords[2]);
+    mystruct->aa_parent_end_y_real = myatoll(resultcoords[3]);
+    mystruct->aa_parent_start_x = mystruct->aa_parent_start_x_real;
+    mystruct->aa_parent_start_y = mystruct->aa_parent_start_y_real;
+    mystruct->aa_parent_end_x = mystruct->aa_parent_end_x_real;
+    mystruct->aa_parent_end_y = mystruct->aa_parent_end_y_real;
+    mystruct->aa_parent_center_x = (mystruct->aa_parent_end_x + mystruct->aa_parent_start_x) / 2;
+    mystruct->aa_parent_center_y = (mystruct->aa_parent_end_y + mystruct->aa_parent_start_y) / 2;
+    mystruct->aa_parent_width = (mystruct->aa_parent_end_x - mystruct->aa_parent_start_x);
+    mystruct->aa_parent_height = (mystruct->aa_parent_end_y - mystruct->aa_parent_start_y);
+    mystruct->aa_parent_area = mystruct->aa_parent_width * mystruct->aa_parent_height;
+    if (!mystruct->aa_parent_height)
+    {
+        return;
+    }
+    mystruct->aa_parent_w_h_relation = (double_t)(mystruct->aa_parent_width) / double_t(mystruct->aa_parent_height);
+}
+
+void static constexpr calculate_bounds(final_struct *mystruct, std::array<std::string, 4> &resultcoords)
+{
+    mystruct->aa_start_x_real = myatoll(resultcoords[0]);
+    mystruct->aa_start_y_real = myatoll(resultcoords[1]);
+    mystruct->aa_end_x_real = myatoll(resultcoords[2]);
+    mystruct->aa_end_y_real = myatoll(resultcoords[3]);
+    mystruct->aa_start_x = mystruct->aa_start_x_real;
+    mystruct->aa_start_y = mystruct->aa_start_y_real;
+    mystruct->aa_end_x = mystruct->aa_end_x_real;
+    mystruct->aa_end_y = mystruct->aa_end_y_real;
+    mystruct->aa_center_x = (mystruct->aa_end_x + mystruct->aa_start_x) / 2;
+    mystruct->aa_center_y = (mystruct->aa_end_y + mystruct->aa_start_y) / 2;
+    mystruct->aa_width = (mystruct->aa_end_x - mystruct->aa_start_x);
+    mystruct->aa_height = (mystruct->aa_end_y - mystruct->aa_start_y);
+    mystruct->aa_area = mystruct->aa_width * mystruct->aa_height;
+    if (!mystruct->aa_height)
+    {
+        return;
+    }
+    mystruct->aa_w_h_relation = (double_t)(mystruct->aa_width) / (double_t)(mystruct->aa_height);
+}
+void static add_to_struct(final_struct &fs, const std::string_view &key, const std::string_view &item,
+                          std::array<std::string, 4> &boundsarray)
+{
+    if (compare2strings(key, sv_Text))
+    {
+        fs.Text += item;
+    }
+    else if (compare2strings(key, sv_ContentDescription))
+    {
+        fs.ContentDescription += item;
+    }
+    else if (compare2strings(key, sv_StateDescription))
+    {
+        fs.StateDescription += item;
+    }
+    else if (compare2strings(key, sv_ClassName))
+    {
+        fs.ClassName += item;
+    }
+    else if (compare2strings(key, sv_PackageName))
+    {
+        fs.PackageName += item;
+    }
+    else if (compare2strings(key, sv_Error))
+    {
+        fs.Error += item;
+    }
+    else if (compare2strings(key, sv_AccessNodeInfo))
+    {
+        fs.AccessNodeInfo += item;
+    }
+    else if (compare2strings(key, sv_WindowId))
+    {
+        fs.WindowId += item;
+    }
+    else if (compare2strings(key, sv_WindowChanges))
+    {
+        fs.WindowChanges += item;
+    }
+    else if (compare2strings(key, sv_WindowChangeTypes))
+    {
+        fs.WindowChangeTypes += item;
+    }
+    else if (compare2strings(key, sv_VirtualDescendantId))
+    {
+        fs.VirtualDescendantId += item;
+    }
+    else if (compare2strings(key, sv_ViewIdResName))
+    {
+        fs.ViewIdResName += item;
+    }
+    else if (compare2strings(key, sv_UniqueId))
+    {
+        fs.UniqueId += item;
+    }
+    else if (compare2strings(key, sv_TraversalBefore))
+    {
+        fs.TraversalBefore += item;
+    }
+    else if (compare2strings(key, sv_TraversalAfter))
+    {
+        fs.TraversalAfter += item;
+    }
+    else if (compare2strings(key, sv_TooltipText))
+    {
+        fs.TooltipText += item;
+    }
+    else if (compare2strings(key, sv_TimeStamp))
+    {
+        fs.TimeStamp += item;
+    }
+    else if (compare2strings(key, sv_TimeNow))
+    {
+        fs.TimeNow += item;
+    }
+    else if (compare2strings(key, sv_SpeechStateChangeTypes))
+    {
+        fs.SpeechStateChangeTypes += item;
+    }
+    else if (compare2strings(key, sv_SourceWindowId))
+    {
+        fs.SourceWindowId += item;
+    }
+    else if (compare2strings(key, sv_SourceNodeId))
+    {
+        fs.SourceNodeId += item;
+    }
+    else if (compare2strings(key, sv_SourceDisplayId))
+    {
+        fs.SourceDisplayId += item;
+    }
+    else if (compare2strings(key, sv_Source))
+    {
+        fs.Source += item;
+    }
+    else if (compare2strings(key, sv_Sealed))
+    {
+        fs.Sealed += item;
+    }
+    else if (compare2strings(key, sv_Records))
+    {
+        fs.Records += item;
+    }
+    else if (compare2strings(key, sv_ParentNodeId))
+    {
+        fs.ParentNodeId += item;
+    }
+    else if (compare2strings(key, sv_ParcelableData))
+    {
+        fs.ParcelableData += item;
+    }
+    else if (compare2strings(key, sv_MovementGranularities))
+    {
+        fs.MovementGranularities += item;
+    }
+    else if (compare2strings(key, sv_HashCode))
+    {
+        fs.HashCode += item;
+    }
+    else if (compare2strings(key, sv_EventType))
+    {
+        fs.EventType += item;
+    }
+    else if (compare2strings(key, sv_Actions))
+    {
+        fs.Actions += item;
+    }
+    else if (compare2strings(key, sv_ContentChangeTypes))
+    {
+        fs.ContentChangeTypes += item;
+    }
+    else if (compare2strings(key, sv_ConnectionId))
+    {
+        fs.ConnectionId += item;
+    }
+    else if (compare2strings(key, sv_ChildAccessibilityIds))
+    {
+        fs.ChildAccessibilityIds += item;
+    }
+    else if (compare2strings(key, sv_BooleanProperties))
+    {
+        fs.BooleanProperties += item;
+    }
+    else if (compare2strings(key, sv_BeforeText))
+    {
+        fs.BeforeText += item;
+    }
+    else if (compare2strings(key, sv_Active))
+    {
+        fs.Active += item;
+    }
+    else if (compare2strings(key, sv_AccessibilityViewId))
+    {
+        fs.AccessibilityViewId += item;
+    }
+    else if (compare2strings(key, sv_AccessibilityTool))
+    {
+        fs.AccessibilityTool += item;
+    }
+    else if (compare2strings(key, sv_BoundsInScreen))
+    {
+        parse_my_coords(item, boundsarray);
+        fs.BoundsInScreen += item;
+        calculate_bounds(&fs, boundsarray);
+    }
+    else if (compare2strings(key, sv_BoundsInParent))
+    {
+        parse_my_coords(item, boundsarray);
+        fs.BoundsInParent += item;
+        calculate_bounds_parent(&fs, boundsarray);
+    }
+    else if (compare2strings(key, sv_UnixTimeText))
+    {
+        fs.UnixTimeText += item;
+    }
+    else if (compare2strings(key, sv_UnixTime))
+    {
+        fs.UnixTime = istrue(item);
+    }
+    else if (compare2strings(key, sv_Visible))
+    {
+        fs.Visible = istrue(item);
+    }
+    else if (compare2strings(key, sv_Password))
+    {
+        fs.Password = istrue(item);
+    }
+    else if (compare2strings(key, sv_Selected))
+    {
+        fs.Selected = istrue(item);
+    }
+    else if (compare2strings(key, sv_Scrollable))
+    {
+        fs.Scrollable = istrue(item);
+    }
+    else if (compare2strings(key, sv_LongClickable))
+    {
+        fs.LongClickable = istrue(item);
+    }
+    else if (compare2strings(key, sv_Loggable))
+    {
+        fs.Loggable = istrue(item);
+    }
+    else if (compare2strings(key, sv_IsTextSelectable))
+    {
+        fs.IsTextSelectable = istrue(item);
+    }
+    else if (compare2strings(key, sv_ImportantForAccessibility))
+    {
+        fs.ImportantForAccessibility = istrue(item);
+    }
+    else if (compare2strings(key, sv_Enabled))
+    {
+        fs.Enabled = istrue(item);
+    }
+    else if (compare2strings(key, sv_Empty))
+    {
+        fs.Empty = istrue(item);
+    }
+    else if (compare2strings(key, sv_ContextClickable))
+    {
+        fs.ContextClickable = istrue(item);
+    }
+    else if (compare2strings(key, sv_ContentInvalid))
+    {
+        fs.ContentInvalid = istrue(item);
+    }
+    else if (compare2strings(key, sv_FullScreen))
+    {
+        fs.FullScreen = istrue(item);
+    }
+    else if (compare2strings(key, sv_Focused))
+    {
+        fs.Focused = istrue(item);
+    }
+    else if (compare2strings(key, sv_Focusable))
+    {
+        fs.Focusable = istrue(item);
+    }
+    else if (compare2strings(key, sv_AccessibilityFocused))
+    {
+        fs.AccessibilityFocused = istrue(item);
+    }
+    else if (compare2strings(key, sv_AccessibilityDataSensitive))
+    {
+        fs.AccessibilityDataSensitive = istrue(item);
+    }
+    else if (compare2strings(key, sv_Clickable))
+    {
+        fs.Clickable = istrue(item);
+    }
+    else if (compare2strings(key, sv_Checked))
+    {
+        fs.Checked = istrue(item);
+    }
+    else if (compare2strings(key, sv_Checkable))
+    {
+        fs.Checkable = istrue(item);
+    }
+}
+void static constexpr clear_struct(final_struct &s)
+{
+    s.Text.clear();
+    s.ContentDescription.clear();
+    s.StateDescription.clear();
+    s.ClassName.clear();
+    s.PackageName.clear();
+    s.Error.clear();
+    s.AccessNodeInfo.clear();
+    s.WindowId.clear();
+    s.WindowChanges.clear();
+    s.WindowChangeTypes.clear();
+    s.VirtualDescendantId.clear();
+    s.ViewIdResName.clear();
+    s.UniqueId.clear();
+    s.TraversalBefore.clear();
+    s.TraversalAfter.clear();
+    s.TooltipText.clear();
+    s.TimeStamp.clear();
+    s.TimeNow.clear();
+    s.SpeechStateChangeTypes.clear();
+    s.SourceWindowId.clear();
+    s.SourceNodeId.clear();
+    s.SourceDisplayId.clear();
+    s.Source.clear();
+    s.Sealed.clear();
+    s.Records.clear();
+    s.ParentNodeId.clear();
+    s.ParcelableData.clear();
+    s.MovementGranularities.clear();
+    s.HashCode.clear();
+    s.EventType.clear();
+    s.Actions.clear();
+    s.ContentChangeTypes.clear();
+    s.ConnectionId.clear();
+    s.ChildAccessibilityIds.clear();
+    s.BooleanProperties.clear();
+    s.BeforeText.clear();
+    s.Active.clear();
+    s.AccessibilityViewId.clear();
+    s.AccessibilityTool.clear();
+    s.BoundsInScreen.clear();
+    s.BoundsInParent.clear();
+    s.UnixTimeText.clear();
+    s.aa_start_x_real = 0;
+    s.aa_start_y_real = 0;
+    s.aa_end_x_real = 0;
+    s.aa_end_y_real = 0;
+    s.aa_start_x = 0;
+    s.aa_start_y = 0;
+    s.aa_end_x = 0;
+    s.aa_end_y = 0;
+    s.aa_center_x = 0;
+    s.aa_center_y = 0;
+    s.aa_width = 0;
+    s.aa_height = 0;
+    s.aa_w_h_relation = 0;
+    s.aa_area = 0;
+    s.aa_parent_start_x_real = 0;
+    s.aa_parent_start_y_real = 0;
+    s.aa_parent_end_x_real = 0;
+    s.aa_parent_end_y_real = 0;
+    s.aa_parent_start_x = 0;
+    s.aa_parent_start_y = 0;
+    s.aa_parent_end_x = 0;
+    s.aa_parent_end_y = 0;
+    s.aa_parent_center_x = 0;
+    s.aa_parent_center_y = 0;
+    s.aa_parent_width = 0;
+    s.aa_parent_height = 0;
+    s.aa_parent_w_h_relation = 0;
+    s.aa_parent_area = 0;
+    s.UnixTime = 0;
+    s.distance_from_start = 0;
+    s.size = 0;
+    s.Visible = 0;
+    s.Password = 0;
+    s.Selected = 0;
+    s.Scrollable = 0;
+    s.LongClickable = 0;
+    s.Loggable = 0;
+    s.IsTextSelectable = 0;
+    s.ImportantForAccessibility = 0;
+    s.Enabled = 0;
+    s.Empty = 0;
+    s.ContextClickable = 0;
+    s.ContentInvalid = 0;
+    s.FullScreen = 0;
+    s.Focused = 0;
+    s.Focusable = 0;
+    s.AccessibilityFocused = 0;
+    s.AccessibilityDataSensitive = 0;
+    s.Clickable = 0;
+    s.Checked = 0;
+    s.Checkable = 0;
+}
 int main(int argc, char *argv[])
 {
     static constexpr size_t size_my_buffer{32};
@@ -999,8 +1496,6 @@ int main(int argc, char *argv[])
 
     tempstring.reserve(8192);
     static constexpr size_t max_size_tmpstring{8192 * 2};
-    std::string timestampstring;
-    timestampstring.reserve(18);
     tm struct_tm{};
     time_t current_time = time(NULL);
     tm *current_tm = localtime(&current_time);
@@ -1009,6 +1504,17 @@ int main(int argc, char *argv[])
     static constexpr size_t offset_first_element{44};
     std::string ref3;
     ref3.reserve(1024);
+    std::string struct_value;
+    struct_value.reserve(512);
+    std::string struct_key;
+    struct_key.reserve(64);
+    std::array<std::string, 4> boundsarray{};
+    boundsarray[0].reserve(6);
+    boundsarray[1].reserve(6);
+    boundsarray[2].reserve(6);
+    boundsarray[3].reserve(6);
+    final_struct parsed_results_cpp_struct{};
+
     while (1)
     {
         if (tempstring.size() > max_size_tmpstring)
@@ -1039,16 +1545,11 @@ int main(int argc, char *argv[])
                 }
                 if ((posoftstamp != std::string::npos) && ((tempstring.find(accessaction_sv) != std::string::npos)))
                 {
-                    std::cout << tempstring << std::endl;
-                    std::cout << "----------------------------------" << std::endl;
-                    timestampstring.clear();
-                    timestampstring += tempstring.substr(0, 18);
-                    int64_t converted_unix_tstamp{
-                        convert_to_unix_timestamp(timestampstring, current_tm, struct_tm, endptrtime)};
-                    std::cout << "UnixTstamp: " << converted_unix_tstamp << std::endl;
+                    clear_struct(parsed_results_cpp_struct);
+                    parsed_results_cpp_struct.UnixTimeText += tempstring.substr(0, 18);
+                    parsed_results_cpp_struct.UnixTime = convert_to_unix_timestamp(
+                        parsed_results_cpp_struct.UnixTimeText, current_tm, struct_tm, endptrtime);
                     tempstring.erase(tempstring.begin(), tempstring.begin() + offset_first_element);
-                    std::cout << tempstring << std::endl;
-                    std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
                     for (const std::string_view &s : compare_vector)
                     {
                         size_t foundstring{tempstring.find(s)};
@@ -1058,8 +1559,6 @@ int main(int argc, char *argv[])
                             tempstring[foundstring + 1] = '\n';
                         }
                     }
-                    std::cout << tempstring << std::endl;
-                    std::cout << "YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY" << std::endl;
                     auto strs2 = tempstring | std::views::split('\n');
                     for (const auto &ref2 : strs2)
                     {
@@ -1080,8 +1579,26 @@ int main(int argc, char *argv[])
                         {
                             ref3[0] += 'A' - 'a';
                         }
-                        std::cout << "Converted String: " << ref3 << std::endl;
+                        auto key_value = ref3 | std::views::split(':');
+                        for (const auto &key : key_value)
+                        {
+                            struct_key.clear();
+                            struct_key.append({key.begin(), key.end()});
+                            break;
+                        }
+
+                        struct_value.clear();
+                        struct_value.append(ref3);
+                        struct_value.erase(struct_value.begin(), struct_value.begin() + struct_key.size() + 1);
+                        struct_value.erase(struct_value.begin(),
+                                           std::find_if(struct_value.begin(), struct_value.end(),
+                                                        [](unsigned char ch) { return !std::isspace(ch); }));
+                        add_to_struct(parsed_results_cpp_struct, struct_key, struct_value, boundsarray);
                     }
+                    tempstring.clear();
+                    tempstring.clear();
+                    dump_struct_vector_as_csv(parsed_results_cpp_struct, tempstring);
+                    std::cout << tempstring;
                     tempstring.clear();
                 }
                 else
