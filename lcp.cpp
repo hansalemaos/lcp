@@ -1465,7 +1465,9 @@ int main(int argc, char *argv[])
     if (is_android)
     {
         adb_clean_cmd = "logcat -b all -c";
-        adb_run_parser_cmd = "stty raw;while true;do sleep 1;logcat --pid=\"$(pgrep iamsohappy)\" --dividers;done";
+        adb_run_parser_cmd = "stty raw;while true;do sleep 1;logcat --pid=\"$( top -b -n1 | grep -E "
+                             "\"[[:digit:]][[:digit:]][[:space:]]+android[.a-z]+iamsohappy[[:space:]]*$\" | grep -v "
+                             "\"grep\" | awk '{print $1}')\" --dividers;done";
     }
     else if (argc < 3)
     {
@@ -1481,7 +1483,9 @@ int main(int argc, char *argv[])
         std::string adb_executable{argv[1]};
         std::string serial{argv[2]};
         adb_run_parser_cmd = adb_executable + " -s " + serial + " shell " +
-                             "stty raw;while true;do sleep 1;logcat --pid=\"$(pgrep iamsohappy)\" --dividers;done";
+                             "stty raw;while true;do sleep 1;logcat --pid=\"$( top -b -n1 | grep -E "
+                             "\"[[:digit:]][[:digit:]][[:space:]]+android[.a-z]+iamsohappy[[:space:]]*$\" | grep -v "
+                             "\"grep\" | awk '{print $1}')\" --dividers;done";
         adb_clean_cmd = adb_executable + " -s " + serial + " shell logcat -b all -c";
     }
     system(adb_clean_cmd.c_str());
